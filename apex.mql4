@@ -1,8 +1,7 @@
 // Define DLL function signatures
 #import "PatraxPro.dll"
    
-    // Add other necessary functions provided by Patrax Pro
-
+//whats good brothers, this code is highly not tested
 
 
 // Define variables for tracking open positions
