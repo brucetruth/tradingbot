@@ -1,0 +1,208 @@
+// Define DLL function signatures
+#import "PatraxPro.dll"
+   
+    // Add other necessary functions provided by Patrax Pro
+
+
+
+// Define variables for tracking open positions
+bool inTrade = false;
+int tradeType;
+
+// Define Patrax Pro settings
+extern double patrax_lot_size = 0.05;
+extern int patrax_take_profit = 30;
+
+// Define timeframes
+string higher_timeframes[] = {"H24", "H4", "H1", "H2"};
+string mid_timeframes[] = {"H1", "H2"};
+string lower_timeframes[] = {"M30", "M15", "M5"};
+
+// Define entry parameters
+double lot_size_high = 0.1;
+double lot_size_low = 0.01;
+int take_profit_high = 50;
+int take_profit_low = 20;
+
+// Initialize variables for tracking signals
+bool h4_signal, h1_signal, h2_signal, m30_signal, m15_signal, m5_signal;
+
+// Initialize panel variables
+int panel_handle;
+
+// Initialize Patrax Pro settings (replace with actual settings)
+double patrax_lot_size = 0.05;
+int patrax_take_profit = 30;
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+int OnInit(){
+    // Create a panel to display signals
+    panel_handle = ObjectsCreate(0, "panel", OBJ_LABEL, 0, 0);
+    ObjectSetText(panel_handle, "Trade Signals", 10, "Arial");
+    
+    // Additional initialization logic if needed
+
+    return(INIT_SUCCEEDED);
+}
+
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick(){
+    // Implement analysis for higher timeframes
+    h4_signal = CheckMovingAverageBreak("H4", ma_period_90, ma_period_250);
+    // Implement other higher timeframe analyses
+    
+    // Implement mid-timeframe analysis
+    if (h4_signal) {
+        h1_signal = CheckMovingAverageBreak("H1", ma_period_90, ma_period_250);
+        h2_signal = CheckMovingAverageBreak("H2", ma_period_90, ma_period_250);
+        // Implement other mid-timeframe analyses
+    }
+
+    // Implement lower timeframe entries
+    for (int i = 0; i < ArraySize(lower_timeframes); i++) {
+        string timeframe = lower_timeframes[i];
+        
+        if (timeframe == "M30") {
+            m30_signal = CheckMovingAverageBreak(timeframe, ma_period_90, ma_period_250);
+            if (h4_signal && h1_signal && h2_signal) {
+                EnterTrades(timeframe, lot_size_high, take_profit_high);
+            } else {
+                EnterTrades(timeframe, lot_size_low, take_profit_low);
+            }
+        } else if (timeframe == "M15") {
+            m15_signal = CheckMovingAverageBreak(timeframe, ma_period_90, ma_period_250);
+            if (h4_signal && h1_signal && h2_signal) {
+                EnterTrades(timeframe, lot_size_high, take_profit_high);
+            } else {
+                EnterTrades(timeframe, lot_size_low, take_profit_low);
+            }
+        } else if (timeframe == "M5") {
+            m5_signal = CheckMovingAverageBreak(timeframe, ma_period_90, ma_period_250);
+            if (h4_signal && h1_signal && h2_signal) {
+                EnterTrades(timeframe, lot_size_high, take_profit_high);
+            } else {
+                EnterTrades(timeframe, lot_size_low, take_profit_low);
+            }
+        }
+        // Implement similar logic for other lower timeframes
+    }
+
+    // Display panel logic
+    DisplayPanelSignals();
+
+    // Integrate Patrax Pro settings
+    IntegratePatraxSettings();
+}
+
+//+------------------------------------------------------------------+
+//| Function to check moving average break on a timeframe            |
+//+------------------------------------------------------------------+
+bool CheckMovingAverageBreak(string timeframe, int period1, int period2){
+    int ma_handle = iMA(_Symbol, StrToTimeframe(timeframe), period1, 0, MODE_SMA, PRICE_CLOSE, 0);
+    int ma_handle2 = iMA(_Symbol, StrToTimeframe(timeframe), period2, 0, MODE_SMA, PRICE_CLOSE, 0);
+
+    double ma_current = iMAOnArray(ArraySetAsSeries(iMA(_Symbol, StrToTimeframe(timeframe), period1, 0, MODE_SMA, PRICE_CLOSE, 0), 0), 0, 0, 0);
+    double ma_previous = iMAOnArray(ArraySetAsSeries(iMA(_Symbol, StrToTimeframe(timeframe), period1, 0, MODE_SMA, PRICE_CLOSE, 0), 0), 0, 1, 0);
+
+    double ma2_current = iMAOnArray(ArraySetAsSeries(iMA(_Symbol, StrToTimeframe(timeframe), period2, 0, MODE_SMA, PRICE_CLOSE, 0), 0), 0, 0, 0);
+    double ma2_previous = iMAOnArray(ArraySetAsSeries(iMA(_Symbol, StrToTimeframe(timeframe), period2, 0, MODE_SMA, PRICE_CLOSE, 0), 0), 0, 1, 0);
+
+    bool break_above = (ma_current > ma2_current && ma_previous <= ma2_previous);
+    bool break_below = (ma_current < ma2_current && ma_previous >= ma2_previous);
+
+    return (break_above || break_below);
+}
+
+
+//+------------------------------------------------------------------+
+//| Function to enter trades based on conditions                     |
+//+------------------------------------------------------------------+
+void EnterTrades(string timeframe, double lot_size, int take_profit){
+    // Check if there is already an open position
+    if (inTrade) {
+        // Implement logic for managing open positions
+        ManageOpenPositions(timeframe, lot_size, take_profit);
+    } else {
+        // No open position, check for entry conditions
+        if (CheckMovingAverageBreak(timeframe, ma_period_90, ma_period_250)) {
+            int ticket;
+
+            // Execute buy or sell order based on the trend direction
+            if (trendDirection == OP_BUY) {
+                ticket = OrderSend(_Symbol, OP_BUY, lot_size, Ask, 3, 0, 0, "Buy Order", 0, 0, Green);
+                OrderModify(ticket, Ask, 0, take_profit, 0, Green);
+            } else if (trendDirection == OP_SELL) {
+                ticket = OrderSend(_Symbol, OP_SELL, lot_size, Bid, 3, 0, 0, "Sell Order", 0, 0, Red);
+                OrderModify(ticket, Bid, 0, take_profit, 0, Red);
+            }
+
+            // Update open position variables
+            inTrade = true;
+            tradeType = trendDirection;
+        }
+    }
+}
+
+//+------------------------------------------------------------------+
+//| Function to manage open positions                                 |
+//+------------------------------------------------------------------+
+void ManageOpenPositions(string timeframe, double lot_size, int take_profit){
+    // Implement logic for managing open positions
+    // You may need to consider partial closing, trailing stops, etc.
+    // Example: Close the position if the opposite signal occurs
+    if (tradeType == OP_BUY && !CheckMovingAverageBreak(timeframe, ma_period_90, ma_period_250)) {
+        OrderClose(OrderTicket(), OrderLots(), Bid, 3, Red);
+        inTrade = false;
+    } else if (tradeType == OP_SELL && !CheckMovingAverageBreak(timeframe, ma_period_90, ma_period_250)) {
+        OrderClose(OrderTicket(), OrderLots(), Ask, 3, Green);
+        inTrade = false;
+    }
+}
+
+
+
+
+
+//+------------------------------------------------------------------+
+//| Function to display signals on the chart                         |
+//+------------------------------------------------------------------+
+void DisplayPanelSignals(){
+    string signal_text = "H24: " + SignalToString(h4_signal) + "\nH4: " + SignalToString(h4_signal) +
+                         "\nH1: " + SignalToString(h1_signal) + "\nH2: " + SignalToString(h2_signal) +
+                         "\nM30: " + SignalToString(m30_signal) + "\nM15: " + SignalToString(m15_signal) +
+                         "\nM5: " + SignalToString(m5_signal);
+
+    ObjectSetText(panel_handle, signal_text, 10, "Arial");
+}
+
+//+------------------------------------------------------------------+
+//| Function to convert boolean signal to string                     |
+//+------------------------------------------------------------------+
+string SignalToString(bool signal){
+    return signal? "Buy": "Sell";
+}
+
+//+------------------------------------------------------------------+
+//| Function to integrate Patrax Pro settings                        |
+//+------------------------------------------------------------------+
+void IntegratePatraxSettings(){
+    // Replace these values with the actual settings from Patrax Pro
+    double patrax_lot_size = 0.05;
+    int patrax_take_profit = 30;
+
+    // Call DLL functions to set Patrax Pro settings
+    int resultLotSize = Patrax_SetLotSize(patrax_lot_size);
+    int resultTakeProfit = Patrax_SetTakeProfit(patrax_take_profit);
+
+    // Check if settings were applied successfully
+    if (resultLotSize == 0 && resultTakeProfit == 0) {
+        Print("Patrax Pro settings applied successfully");
+    } else {
+        Print("Error applying Patrax Pro settings");
+    }
+}
+
