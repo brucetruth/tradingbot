@@ -1,0 +1,122 @@
+
+
+//+------------------------------------------------------------------+
+//| include                                                          |
+//+------------------------------------------------------------------+
+
+#include <Trade\Trade.mqh>
+
+//+------------------------------------------------------------------+
+//| input variables                                                  |
+//+------------------------------------------------------------------+
+
+ input double Lots = 0.1; // Lot Size
+ input ENUM_TIMEFRAMES Timeframes; // TIME FRAMES
+ input int FastPeriods = 90;// Support MA
+ input int SlowPeriods = 250;// Resistance MA
+ input ENUM_MA_METHOD MaMethod = MODE_SMA; // MA Type
+ input int inpStopLoss   = 100;// Stop loss 
+ input int inpTakeProfit  = 200;// Take Profit
+ 
+//+------------------------------------------------------------------+
+//| Global variables                                                 |
+//+------------------------------------------------------------------+
+
+CTrade trade;
+int FastmaHandle;
+int SlowmaHandle;
+double FastBuffer[];
+double SlowBuffer[];
+int maDirection;
+int BarsTotal;
+
+//+------------------------------------------------------------------+
+//| Expert initialization function                                   |
+//+------------------------------------------------------------------+
+ 
+int OnInit(){
+ FastmaHandle = iMA(_Symbol,Timeframes,FastPeriods,0,MaMethod,PRICE_CLOSE);
+  if(FastmaHandle == INVALID_HANDLE){
+     Alert("failed to create fast_ma_handle");
+     return INIT_FAILED;
+  }
+  SlowmaHandle = iMA(_Symbol,Timeframes,SlowPeriods,0,MaMethod,PRICE_CLOSE);
+  if(SlowmaHandle == INVALID_HANDLE){
+     Alert("failed to create slow_ma_handle");
+     return INIT_FAILED;
+  }
+  
+ BarsTotal = iBars(_Symbol,Timeframes);
+  
+   if(inpStopLoss <= 0){
+       Alert ("Stop loss <= 0");
+       return INIT_PARAMETERS_INCORRECT;
+   }
+   
+   if( inpTakeProfit<= 0){
+       Alert ("Take Profit <= 0");
+       return INIT_PARAMETERS_INCORRECT;
+   }
+   
+   ArraySetAsSeries(FastBuffer,true);
+   ArraySetAsSeries(SlowBuffer,true);
+   
+ return(INIT_SUCCEEDED);
+  }
+  
+//+------------------------------------------------------------------+
+//| Expert deinitialization function                                 |
+//+------------------------------------------------------------------+
+
+void OnDeinit(const int reason){
+  if(FastmaHandle != INVALID_HANDLE ){IndicatorRelease(FastmaHandle);}
+  if(SlowmaHandle != INVALID_HANDLE ){IndicatorRelease(SlowmaHandle);}
+   
+   }
+   
+//+------------------------------------------------------------------+
+//| Expert tick function                                             |
+//+------------------------------------------------------------------+
+void OnTick(){
+     int bars = iBars(_Symbol,Timeframes);
+      if(BarsTotal < bars){
+        BarsTotal = bars;
+        double FastBuffer[];
+        CopyBuffer(FastmaHandle,MAIN_LINE,1,2,FastBuffer);}
+       /* BarsTotal = CopyBuffer(FastmaHandle,0,0,2,FastBuffer);*/
+         if(BarsTotal != 2){
+            Print("not enough valuews for fast moving avg");
+            return;
+         } 
+        bars = iBars(_Symbol,Timeframes);
+      if(BarsTotal < bars){
+        BarsTotal = bars;
+        double SlowBuffer[];
+        CopyBuffer(SlowmaHandle,MAIN_LINE,1,2,SlowBuffer);
+         /*BarsTotal = CopyBuffer(SlowmaHandle,0,0,2,SlowBuffer);*/
+         if(BarsTotal != 2){
+            Print("not enough valuews for slow moving avg");
+            return;
+         }
+          
+        if(FastBuffer[1] > FastBuffer[0] && SlowBuffer[1] > SlowBuffer[0] && maDirection <= 0 ){
+          maDirection =1;
+          
+          trade.PositionClose(_Symbol);
+          trade.Buy(Lots);
+        }else if(FastBuffer[1] < FastBuffer[0] && SlowBuffer[1] < SlowBuffer[0] && maDirection >= 0){
+           maDirection = -1;
+           
+           trade.PositionClose(_Symbol);
+           trade.Sell(Lots);
+           }
+         Comment("\nMa Direction:", maDirection,
+                 "\nfastma[0]:",DoubleToString(FastBuffer[0],_Digits),
+                 "\nfastma[1]",DoubleToString(FastBuffer[1],_Digits),
+                 "\nslowma[0]:",DoubleToString(SlowBuffer[0],_Digits),
+                 "\nslowma[1]",DoubleToString(SlowBuffer[1],_Digits));
+      }
+   }
+   
+    
+     
