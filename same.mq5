@@ -1,3 +1,5 @@
+#include<Trade\Trade.mqh>
+
 // Define moving average periods
 int ma_period_90 = 90;
 int ma_period_250 = 250;
